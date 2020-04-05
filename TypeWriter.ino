@@ -3,7 +3,7 @@ const char BASE = 30;
 void setup()
 {
 	//Start serial connection
-	Serial.begin(115200);
+	Serial.begin(9600);
 
 	//Configure pins (30-49 odd for input, event for output)
 	for (char i = BASE; i < BASE + 20; i++) {
@@ -23,11 +23,6 @@ typedef enum {
 	MOD_SHIFT = 1,
 	MOD_CODE = 2
 } Modifier;
-
-typedef enum {
-	KEY_UP,
-	KEY_DOWN
-} Direction;
 
 typedef struct {
 	unsigned char latin1;
@@ -121,34 +116,52 @@ const mapelement mapping[255] = {
 	{0, 0, 0, MOD_NO}			/* Sentinel */
 };
 
-void key(char row, char col, Direction direction)
+const char SHIFT_ROW = 8, SHIFT_COL = 7;
+
+void activate(char row, char col, bool shift_same_col)
 {
 	int readPin = BASE + 19 - 2 * col;
 	int writePin = BASE + 18 - 2 * row;
 
-	Serial.println(readPin, DEC);
+	while (1) {
+		if (digitalRead(readPin) == LOW) {
+			break;
+		}
+	}
+	digitalWrite(writePin, LOW);
+	if (shift_same_col) {
+		digitalWrite(BASE + 18 - 2 * SHIFT_ROW, LOW);
+	}
+
+	while (1) {
+		if (digitalRead(readPin) == HIGH) {
+			break;
+		}
+	}
+	digitalWrite(writePin, HIGH);
+	if (shift_same_col) {
+		digitalWrite(BASE + 18 - 2 * SHIFT_ROW, HIGH);
+	}
+}
+
+void key(char row, char col, Modifier mod)
+{
 
 	for (int i = 0; i < 2; i++) {
-		while (1) {
-			if (digitalRead(readPin) == LOW) {
-				break;
-			}
+		if (mod & MOD_SHIFT) {
+			activate(SHIFT_ROW, SHIFT_COL, false);
 		}
-		digitalWrite(writePin, LOW);
-
-		while (1) {
-			if (digitalRead(readPin) == HIGH) {
-				break;
-			}
+		if (mod & MOD_CODE) {
+			activate(7, 9, false);
 		}
-		digitalWrite(writePin, HIGH);
+		activate(row, col, (mod & MOD_SHIFT) && col == SHIFT_COL);
 	}
 }
 
 void write_character(int character)
 {
+	delay(100);
 	/* We assume the character is latin-1 encoded */
-	Serial.println(character);
 	int i;
 	for (i = 0; i < 255; i++) {
 		if (mapping[i].latin1 == character) {
@@ -162,24 +175,11 @@ void write_character(int character)
 	}
 
 	if (i < 255) {
-		/*if (mapping[i].mod & MOD_SHIFT) {
-		   key(8, 7, KEY_DOWN);
-		   }
-		   if (mapping[i].mod & MOD_CODE) {
-		   key(7, 9, KEY_DOWN);
-		   } */
-
-		key(mapping[i].row, mapping[i].col, KEY_DOWN);
-
-		/*if (mapping[i].mod & MOD_CODE) {
-		   key(7, 9, KEY_UP);
-		   }
-
-		   if (mapping[i].mod & MOD_SHIFT) {
-		   key(8, 7, KEY_UP);
-		   } */
+		key(mapping[i].row, mapping[i].col, mapping[i].mod);
 	} else {
-		Serial.println("Not found :(");
+		Serial.print("Character '");
+		Serial.print(character);
+		Serial.println("' not found");
 	}
 
 }
