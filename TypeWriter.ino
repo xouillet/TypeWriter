@@ -1,11 +1,16 @@
+const char BASE = 30;
+
 void setup()
 {
 	//Start serial connection
-	Serial.begin(9600);
+	Serial.begin(115200);
 
-	//Configure pins (30-49 even for input, odd for output)
-	for (int i = 30; i < 49; i++) {
-		pinMode(i, (i % 2 == 0) ? INPUT : OUTPUT);
+	//Configure pins (30-49 odd for input, event for output)
+	for (char i = BASE; i < BASE + 20; i++) {
+		pinMode(i, (i % 2 == 0) ? OUTPUT : INPUT_PULLUP);
+		if (i % 2 == 0) {
+			digitalWrite(i, HIGH);
+		}
 	}
 
 	Serial.println("~ TypeWriter Panasonic R191 by Xou ~");
@@ -113,15 +118,31 @@ const mapelement mapping[255] = {
 	{10, 8, 4, MOD_NO},			/* \n */
 	{13, 8, 4, MOD_NO},			/* \r */
 	{32, 3, 9, MOD_NO},			/* Space */
-	{0, 0, 0, 0}				/* Sentinel */
+	{0, 0, 0, MOD_NO}			/* Sentinel */
 };
 
 void key(char row, char col, Direction direction)
 {
-	Serial.println(row);
-	Serial.println(col);
-	Serial.println(direction);
-	Serial.println("");
+	int readPin = BASE + 19 - 2 * col;
+	int writePin = BASE + 18 - 2 * row;
+
+	Serial.println(readPin, DEC);
+
+	for (int i = 0; i < 2; i++) {
+		while (1) {
+			if (digitalRead(readPin) == LOW) {
+				break;
+			}
+		}
+		digitalWrite(writePin, LOW);
+
+		while (1) {
+			if (digitalRead(readPin) == HIGH) {
+				break;
+			}
+		}
+		digitalWrite(writePin, HIGH);
+	}
 }
 
 void write_character(int character)
@@ -141,23 +162,22 @@ void write_character(int character)
 	}
 
 	if (i < 255) {
-		if (mapping[i].mod & MOD_SHIFT) {
-			key(8, 7, KEY_DOWN);
-		}
-		if (mapping[i].mod & MOD_CODE) {
-			key(7, 9, KEY_DOWN);
-		}
+		/*if (mapping[i].mod & MOD_SHIFT) {
+		   key(8, 7, KEY_DOWN);
+		   }
+		   if (mapping[i].mod & MOD_CODE) {
+		   key(7, 9, KEY_DOWN);
+		   } */
 
 		key(mapping[i].row, mapping[i].col, KEY_DOWN);
-		key(mapping[i].row, mapping[i].col, KEY_UP);
 
-		if (mapping[i].mod & MOD_CODE) {
-			key(7, 9, KEY_UP);
-		}
+		/*if (mapping[i].mod & MOD_CODE) {
+		   key(7, 9, KEY_UP);
+		   }
 
-		if (mapping[i].mod & MOD_SHIFT) {
-			key(8, 7, KEY_UP);
-		}
+		   if (mapping[i].mod & MOD_SHIFT) {
+		   key(8, 7, KEY_UP);
+		   } */
 	} else {
 		Serial.println("Not found :(");
 	}
