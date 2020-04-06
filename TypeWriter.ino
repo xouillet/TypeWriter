@@ -14,9 +14,8 @@ void setup()
 		}
 	}
 
-	buffer = false;
 	Serial.println("~ TypeWriter Panasonic R191 by Xou ~");
-
+	buffer = true;
 }
 
 /* Mapping definition */
@@ -25,7 +24,8 @@ typedef enum {
 	MOD_SHIFT = 1,
 	MOD_CODE = 2,
 	MOD_ACUTE = 4,
-	MOD_AGRAVE = 8
+	MOD_AGRAVE = 8,
+	MOD_ACIRC = 16
 } Modifier;
 
 typedef struct {
@@ -137,6 +137,7 @@ const MapElement mapping[255] = {
 	{201, {0, 3, MOD_ACUTE | MOD_SHIFT}},	/* É */
 	{232, {0, 3, MOD_AGRAVE}},	/* è */
 	{200, {0, 3, MOD_AGRAVE | MOD_SHIFT}},	/* È */
+	{234, {0, 3, MOD_ACIRC}},	/* ê */
 	{225, {3, 4, MOD_ACUTE}},	/* á */
 	{193, {3, 4, MOD_ACUTE | MOD_SHIFT}},	/* Á */
 	{224, {3, 4, MOD_AGRAVE}},	/* à */
@@ -153,14 +154,26 @@ const MapElement mapping[255] = {
 	{211, {7, 2, MOD_ACUTE | MOD_SHIFT}},	/* Ó */
 	{242, {7, 2, MOD_AGRAVE}},	/* ò */
 	{210, {7, 2, MOD_AGRAVE | MOD_SHIFT}},	/* Ò */
+	{234, 0, 3, MOD_ACIRC},		/* ê */
+	{202, 0, 3, MOD_ACIRC | MOD_SHIFT},	/* Ê */
+	{226, 3, 4, MOD_ACIRC},		/* â */
+	{194, 3, 4, MOD_ACIRC | MOD_SHIFT},	/* Â */
+	{238, 6, 2, MOD_ACIRC},		/* î */
+	{206, 6, 2, MOD_ACIRC | MOD_SHIFT},	/* Î */
+	{251, 6, 3, MOD_ACIRC},		/* û */
+	{219, 6, 3, MOD_ACIRC | MOD_SHIFT},	/* Û */
+	{244, 7, 2, MOD_ACIRC},		/* ô */
+	{212, 7, 2, MOD_ACIRC | MOD_SHIFT},	/* Ô */
 	{10, {8, 4, MOD_NO}},		/* \n */
 	{13, {8, 4, MOD_NO}},		/* \r */
 	{32, {3, 9, MOD_NO}},		/* Space */
-	{AUTO_LF, {7, 0, MOD_CODE}},
-	{PAGE_FEED, {8, 4, MOD_CODE}},
-	{UNDERLINE, {6, 3, MOD_CODE}},
-	{MARGIN_LSET, {0, 0, MOD_CODE}},
-	{MARGIN_RSET, {0, 1, MOD_CODE}},
+	{127, {9, 0, MOD_NO}},		/* Backspace */
+	{12, {8, 4, MOD_CODE}},		/* Page feed */
+	{17, {7, 0, MOD_CODE}},		/* Auto LF */
+	{18, {0, 0, MOD_CODE}},		/* LSet */
+	{19, {0, 1, MOD_CODE}},		/* RSet */
+	{15, {6, 3, MOD_CODE}},		/* Underline */
+	{14, {1, 7, MOD_CODE}},		/* Bold */
 	{0, {0, 0, MOD_NO}}			/* Sentinel */
 };
 
@@ -170,12 +183,14 @@ const Combi CODE = { 7, 9, MOD_NO };
 const Combi ACUTE = { 8, 0, MOD_NO };
 const Combi AGRAVE = { 8, 0, MOD_SHIFT };
 const Combi SPACE = { 3, 9, MOD_NO };
-const Combi BOLD = { 1, 7, MOD_CODE };
+const Combi BACKSPACE = { 9, 0, MOD_NO };
+
+const char shiftWritePin = BASE + 18 - 2 * SHIFT.row;
 
 void activate(char row, char col, bool shift_same_col)
 {
-	int readPin = BASE + 19 - 2 * col;
-	int writePin = BASE + 18 - 2 * row;
+	char readPin = BASE + 19 - 2 * col;
+	char writePin = BASE + 18 - 2 * row;
 
 	while (1) {
 		if (digitalRead(readPin) == LOW) {
@@ -184,7 +199,7 @@ void activate(char row, char col, bool shift_same_col)
 	}
 	digitalWrite(writePin, LOW);
 	if (shift_same_col) {
-		digitalWrite(BASE + 18 - 2 * SHIFT.row, LOW);
+		digitalWrite(shiftWritePin, LOW);
 	}
 
 	while (1) {
@@ -194,7 +209,7 @@ void activate(char row, char col, bool shift_same_col)
 	}
 	digitalWrite(writePin, HIGH);
 	if (shift_same_col) {
-		digitalWrite(BASE + 18 - 2 * SHIFT.row, HIGH);
+		digitalWrite(shiftWritePin, HIGH);
 	}
 }
 
@@ -207,6 +222,12 @@ void key(Combi combi)
 		key(AGRAVE);
 	}
 
+	if (combi.mod & MOD_ACIRC) {
+		key(ACUTE);
+		key(SPACE);
+		key(BACKSPACE);
+		key(AGRAVE);
+	}
 	for (int i = 0; i < 2; i++) {
 		if (combi.mod & MOD_SHIFT) {
 			activate(SHIFT.row, SHIFT.col, false);
@@ -217,7 +238,7 @@ void key(Combi combi)
 		activate(combi.row, combi.col, (combi.mod & MOD_SHIFT)
 				 && combi.col == SHIFT.col);
 	}
-	delay(100);
+	delay(50);
 }
 
 void write_character(int character)
@@ -250,8 +271,8 @@ void loop()
 		write_character(Serial.read());
 	} else {
 		if (buffer) {
-			Serial.print('.');
 			buffer = false;
+			Serial.print('.');
 		}
 	}
 }
