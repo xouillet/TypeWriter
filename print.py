@@ -3,7 +3,7 @@ import sys
 import time
 
 with open(sys.argv[1], "r") as f:
-    with serial.Serial("/dev/ttyACM0", 9600) as ser:
+    with serial.Serial("/dev/ttyACM0", 9600, timeout=10) as ser:
         ser.write(b"\n")
         while True:
             buf = f.read(60)
