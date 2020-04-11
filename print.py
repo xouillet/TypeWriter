@@ -62,7 +62,7 @@ def main():
     with serial.Serial(args.port, 9600) as ser:
         ser.timeout = 1
         wait_ready(ser)
-        ser.timeout = None
+        ser.timeout = 60
         if args.file is None and sys.stdin.isatty():
             typewriter(ser)
         else:
@@ -79,7 +79,7 @@ def main():
                 ser.write(b"\n")
             while True:
                 buf = content.read(60)
-                if buf == "":
+                if buf == b"":
                     break
                 ser.write(buf)
                 wait_ready(ser)

@@ -1,18 +1,40 @@
-const char BASE = 30;
 bool buffer;
+
+// Mapping pin <-> row/col
+// 0 is top, 10 is bottom
+// cols are input (left connector)
+// rows are output (right connector)
+char get_pin_col(char col)
+{
+	return 33 - col;
+}
+
+char get_pin_row(char row)
+{
+	return 23 - row;
+}
+
+
 
 void setup()
 {
 	//Start serial connection
 	Serial.begin(9600);
 
-	//Configure pins (30-49 odd for input, event for output)
-	for (char i = BASE; i < BASE + 20; i++) {
-		pinMode(i, (i % 2 == 0) ? OUTPUT : INPUT_PULLUP);
-		if (i % 2 == 0) {
-			digitalWrite(i, HIGH);
-		}
+	//Configure pins
+	for (char i = 0; i < 10; i++) {
+		pinMode(get_pin_col(i), INPUT_PULLUP);
 	}
+	for (char i = 0; i < 10; i++) {
+		if (i == 4 || i == 5) {
+			continue;
+		}
+		pinMode(get_pin_row(i), OUTPUT);
+		digitalWrite(get_pin_row(i), HIGH);
+	}
+	// Row 4 is GND
+	pinMode(get_pin_row(4), OUTPUT);
+	digitalWrite(get_pin_row(4), LOW);
 
 	Serial.println("~ TypeWriter Panasonic R191 by Xou ~");
 	buffer = true;
@@ -185,13 +207,15 @@ const Combi AGRAVE = { 8, 0, MOD_SHIFT };
 const Combi SPACE = { 3, 9, MOD_NO };
 const Combi BACKSPACE = { 9, 0, MOD_NO };
 
-const char shiftWritePin = BASE + 18 - 2 * SHIFT.row;
+const char shiftWritePin = get_pin_row(SHIFT.row);
 
 void activate(char row, char col, bool shift_same_col)
 {
-	char readPin = BASE + 19 - 2 * col;
-	char writePin = BASE + 18 - 2 * row;
+	char readPin = get_pin_col(col);
+	char writePin = get_pin_row(row);
 
+	//Serial.println("Waiting for low on ");
+	//Serial.print(readPin);
 	while (1) {
 		if (digitalRead(readPin) == LOW) {
 			break;
