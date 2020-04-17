@@ -6,6 +6,7 @@ import sys
 import tty
 import textwrap
 import io
+import time
 import unicodedata
 
 TYPEWRITER_SHORTCUT = {
@@ -59,30 +60,40 @@ def main():
     )
 
     args = parser.parse_args()
-    with serial.Serial(args.port, 9600) as ser:
-        ser.timeout = 1
-        wait_ready(ser)
-        ser.timeout = 60
-        if args.file is None and sys.stdin.isatty():
-            typewriter(ser)
-        else:
-            with open(args.file, "r") if args.file else sys.stdin as f:
-                lines = f.readlines()
-            content = ""
-            for line in lines:
-                for wrapline in textwrap.wrap(line, 70):
-                    content += wrapline + "\n"
-            content = unicodedata.normalize("NFC", content).encode("latin1", "ignore")
-            content = io.BytesIO(content)
-
-            if not args.no_newline:
-                ser.write(b"\n")
-            while True:
-                buf = content.read(60)
-                if buf == b"":
-                    break
-                ser.write(buf)
+    connected = False
+    while not connected:
+        try:
+            with serial.Serial(args.port, 9600) as ser:
+                connected = True
+                ser.timeout = 1
                 wait_ready(ser)
+                ser.timeout = 60
+                if args.file is None and sys.stdin.isatty():
+                    typewriter(ser)
+                else:
+                    with open(args.file, "r") if args.file else sys.stdin as f:
+                        lines = f.readlines()
+                    content = ""
+                    for line in lines:
+                        for wrapline in textwrap.wrap(line, 70):
+                            content += wrapline + "\n"
+                    content = unicodedata.normalize("NFC", content).encode("latin1", "ignore")
+                    content = io.BytesIO(content)
+
+                    if not args.no_newline:
+                        ser.write(b"\n")
+                    while True:
+                        buf = content.read(60)
+                        if buf == b"":
+                            break
+                        ser.write(buf)
+                        wait_ready(ser)
+        except serial.serialutil.SerialException as e:
+            if e.errno == 16:
+                print(".", newline=False)
+                time.sleep(1)
+                continue
+            raise
 
 
 if __name__ == "__main__":
