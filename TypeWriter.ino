@@ -262,7 +262,12 @@ void key(Combi combi)
 		activate(combi.row, combi.col, (combi.mod & MOD_SHIFT)
 				 && combi.col == SHIFT.col);
 	}
-	delay(50);
+	if (combi.row == 8 && combi.col == 4) {
+		/* return, let it breathe */
+		delay(300);
+	} else {
+		delay(75);
+	}
 }
 
 void write_character(int character)
